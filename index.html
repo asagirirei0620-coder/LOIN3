@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOIN</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --text: #20242c;
+  --sub: #7d8490;
+  --line: #e7eaf0;
+  --main: #5b5ff7;
+  --main-light: #eef0ff;
+  --danger: #ff5d6c;
+}
+
+body {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Helvetica Neue",
+    "Noto Sans JP",
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* =========================
+   共通
+========================= */
+
+.screen {
+  display: none;
+  min-height: calc(100vh - 74px);
+  padding-bottom: 90px;
+}
+
+.screen.active {
+  display: block;
+}
+
+.header {
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.logo {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: var(--bg);
+  font-size: 20px;
+}
+
+.container {
+  max-width: 760px;
+  margin: auto;
+  padding: 20px;
+}
+
+.search {
+  width: 100%;
+  padding: 15px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  outline: none;
+  margin-bottom: 18px;
+}
+
+.search:focus {
+  border-color: var(--main);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 18px;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 750;
+  margin: 22px 0 12px;
+}
+
+.muted {
+  color: var(--sub);
+}
+
+/* =========================
+   ホーム
+========================= */
+
+.welcome {
+  background: linear-gradient(135deg, #5b5ff7, #8588ff);
+  color: white;
+  border-radius: 24px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.welcome h1 {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,.18);
+  padding: 7px 11px;
+  border-radius: 20px;
+  margin-top: 14px;
+  font-size: 13px;
+}
+
+.online-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #32d583;
+}
+
+.chat-preview {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 2px;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: var(--main-light);
+  display: grid;
+  place-items: center;
+  font-size: 23px;
+  flex-shrink: 0;
+}
+
+.chat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-name {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.chat-message {
+  color: var(--sub);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-time {
+  color: var(--sub);
+  font-size: 12px;
+}
+
+/* =========================
+   友達
+========================= */
+
+.friend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.friend:last-child {
+  border-bottom: 0;
+}
+
+.friend-info {
+  flex: 1;
+}
+
+.friend-name {
+  font-weight: 700;
+}
+
+.friend-status {
+  color: var(--sub);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.online {
+  color: #20b56b;
+}
+
+/* =========================
+   プロフィール
+========================= */
+
+.profile {
+  text-align: center;
+  padding-top: 30px;
+}
+
+.profile-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 32px;
+  background: var(--main-light);
+  display: grid;
+  place-items: center;
+  font-size: 45px;
+  margin: 0 auto 15px;
+}
+
+.profile-name {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.profile-id {
+  color: var(--sub);
+  margin-top: 5px;
+}
+
+.profile-status {
+  margin: 14px auto 25px;
+  padding: 10px 16px;
+  background: var(--card);
+  border-radius: 20px;
+  width: fit-content;
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 17px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.setting:last-child {
+  border-bottom: 0;
+}
+
+.setting-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+
+.setting-text {
+  flex: 1;
+  text-align: left;
+}
+
+.setting-title {
+  font-weight: 650;
+}
+
+.setting-sub {
+  color: var(--sub);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+/* =========================
+   ボトムナビ
+========================= */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 74px;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(15px);
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 50;
+}
+
+.nav-btn {
+  background: transparent;
+  color: var(--sub);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  min-width: 65px;
+}
+
+.nav-btn span:first-child {
+  font-size: 23px;
+}
+
+.nav-btn.active {
+  color: var(--main);
+  font-weight: 700;
+}
+
+/* =========================
+   チャット画面
+========================= */
+
+.chat-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+}
+
+.chat-screen.active {
+  display: flex;
+}
+
+.chat-header {
+  height: 70px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+}
+
+.chat-header-info {
+  flex: 1;
+}
+
+.chat-header-name {
+  font-weight: 750;
+}
+
+.chat-header-status {
+  color: #20b56b;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.chat-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.message-row {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.message-row.me {
+  justify-content: flex-end;
+}
+
+.bubble {
+  max-width: 75%;
+  padding: 12px 15px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  line-height: 1.5;
+}
+
+.message-row.me .bubble {
+  background: var(--main);
+  color: white;
+  border-color: var(--main);
+  border-bottom-right-radius: 5px;
+}
+
+.message-row:not(.me) .bubble {
+  border-bottom-left-radius: 5px;
+}
+
+.message-meta {
+  font-size: 10px;
+  color: var(--sub);
+  margin-top: 4px;
+}
+
+.message-row.me .message-meta {
+  text-align: right;
+}
+
+.chat-input-area {
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-input {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  border-radius: 18px;
+  padding: 12px 15px;
+  outline: none;
+}
+
+.send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+  background: var(--main);
+  color: white;
+  font-size: 18px;
+}
+
+/* =========================
+   モーダル
+========================= */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 600px;
+  background: var(--card);
+  border-radius: 25px 25px 0 0;
+  padding: 24px;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 18px;
+}
+
+.action {
+  width: 100%;
+  padding: 15px;
+  background: var(--bg);
+  border-radius: 14px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.action:hover {
+  background: var(--main-light);
+}
+
+/* =========================
+   レスポンシブ
+========================= */
+
+@media (min-width: 800px) {
+  .bottom-nav {
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    border: 1px solid var(--line);
+    border-radius: 22px 22px 0 0;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div id="app">
+
+  <!-- ================= HOME ================= -->
+
+  <section id="home" class="screen active">
+
+    <header class="header">
+      <div class="logo">LOIN</div>
+
+      <div class="header-actions">
+        <button class="icon-btn" onclick="showNotifications()">🔔</button>
+        <button class="icon-btn" onclick="showSettings()">⚙️</button>
+      </div>
+    </header>
+
+    <main class="container">
+
+      <div class="welcome">
+        <h1>こんにちは、キノコ！</h1>
+        <p>今日もLOINしよう。</p>
+
+        <div class="status">
+          <span class="online-dot"></span>
+          オンライン
+        </div>
+      </div>
+
+      <input
+        class="search"
+        placeholder="🔍 トーク・友達を検索"
+        oninput="searchAll(this.value)"
+      >
+
+      <div class="section-title">最近のトーク</div>
+
+      <div class="card">
+
+        <div class="chat-preview" onclick="openChat('○○')">
+          <div class="avatar">👤</div>
+
+          <div class="chat-info">
+            <div class="chat-name">○○</div>
+            <div class="chat-message">
+              明日どうする？
+            </div>
+          </div>
+
+          <div class="chat-time">12:04</div>
+        </div>
+
+        <div class="chat-preview" onclick="openChat('ゲーム部')">
+          <div class="avatar">🎮</div>
+
+          <div class="chat-info">
+            <div class="chat-name">ゲーム部</div>
+            <div class="chat-message">
+              △△：今日やる？
+            </div>
+          </div>
+
+          <div class="chat-time">11:52</div>
+        </div>
+
+        <div class="chat-preview" onclick="openChat('□□')">
+          <div class="avatar">🐶</div>
+
+          <div class="chat-info">
+            <div class="chat-name">□□</div>
+            <div class="chat-message">
+              スタンプ
+            </div>
+          </div>
+
+          <div class="chat-time">10:31</div>
+        </div>
+
+      </div>
+
+      <div class="section-title">オンラインの友達</div>
+
+      <div class="card">
+        <div class="friend">
+          <div class="avatar">🧑</div>
+
+          <div class="friend-info">
+            <div class="friend-name">○○</div>
+            <div class="friend-status online">
+              🟢 オンライン
+            </div>
+          </div>
+        </div>
+
+        <div class="friend">
+          <div class="avatar">👩</div>
+
+          <div class="friend-info">
+            <div class="friend-name">△△</div>
+            <div class="friend-status online">
+              🟢 オンライン
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </section>
+
+
+  <!-- ================= CHAT LIST ================= -->
+
+  <section id="talk" class="screen">
+
+    <header class="header">
+      <div class="logo">トーク</div>
+
+      <button class="icon-btn" onclick="newChat()">＋</button>
+    </header>
+
+    <main class="container">
+
+      <input
+        class="search"
+        placeholder="🔍 トークを検索"
+      >
+
+      <div class="card">
+
+        <div class="chat-preview" onclick="openChat('○○')">
+          <div class="avatar">👤</div>
+          <div class="chat-info">
+            <div class="chat-name">○○</div>
+            <div class="chat-message">明日どうする？</div>
+          </div>
+          <div class="chat-time">12:04</div>
+        </div>
+
+        <div class="chat-preview" onclick="openChat('ゲーム部')">
+          <div class="avatar">🎮</div>
+          <div class="chat-info">
+            <div class="chat-name">ゲーム部</div>
+            <div class="chat-message">今日やる？</div>
+          </div>
+          <div class="chat-time">11:52</div>
+        </div>
+
+      </div>
+
+    </main>
+  </section>
+
+
+  <!-- ================= FRIENDS ================= -->
+
+  <section id="friends" class="screen">
+
+    <header class="header">
+      <div class="logo">友達</div>
+
+      <button class="icon-btn" onclick="addFriend()">＋</button>
+    </header>
+
+    <main class="container">
+
+      <input
+        class="search"
+        placeholder="🔍 友達を検索"
+      >
+
+      <button
+        class="action"
+        onclick="addFriend()"
+      >
+        ➕ 友達を追加
+      </button>
+
+      <div class="section-title">オンライン</div>
+
+      <div class="card">
+
+        <div class="friend">
+          <div class="avatar">🧑</div>
+
+          <div class="friend-info">
+            <div class="friend-name">○○</div>
+            <div class="friend-status online">
+              🟢 オンライン
+            </div>
+          </div>
+        </div>
+
+        <div class="friend">
+          <div class="avatar">👩</div>
+
+          <div class="friend-info">
+            <div class="friend-name">△△</div>
+            <div class="friend-status online">
+              🟢 オンライン
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="section-title">すべての友達</div>
+
+      <div class="card">
+
+        <div class="friend">
+          <div class="avatar">👤</div>
+
+          <div class="friend-info">
+            <div class="friend-name">○○</div>
+            <div class="friend-status">
+              ゲーム中 🎮
+            </div>
+          </div>
+        </div>
+
+        <div class="friend">
+          <div class="avatar">🐶</div>
+
+          <div class="friend-info">
+            <div class="friend-name">□□</div>
+            <div class="friend-status">
+              最終オンライン 10分前
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </section>
+
+
+  <!-- ================= PROFILE ================= -->
+
+  <section id="profile" class="screen">
+
+    <header class="header">
+      <div class="logo">自分</div>
+
+      <button class="icon-btn" onclick="showSettings()">⚙️</button>
+    </header>
+
+    <main class="container">
+
+      <div class="profile">
+
+        <div class="profile-avatar">🍄</div>
+
+        <div class="profile-name">キノコ</div>
+
+        <div class="profile-id">@LOIN_USER</div>
+
+        <div class="profile-status">
+          🟢 ゲーム中🎮
+        </div>
+
+      </div>
+
+      <div class="card">
+
+        <div class="setting">
+          <div class="setting-icon">👤</div>
+
+          <div class="setting-text">
+            <div class="setting-title">
+              プロフィール編集
+            </div>
+            <div class="setting-sub">
+              名前・アイコン・一言
+            </div>
+          </div>
+        </div>
+
+        <div class="setting" onclick="openStampMaker()">
+          <div class="setting-icon">🎨</div>
+
+          <div class="setting-text">
+            <div class="setting-title">
+              スタンプ
+            </div>
+            <div class="setting-sub">
+              自作スタンプを作る
+            </div>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-icon">🟢</div>
+
+          <div class="setting-text">
+            <div class="setting-title">
+              ステータス
+            </div>
+            <div class="setting-sub">
+              今の状態を設定
+            </div>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-icon">🔒</div>
+
+          <div class="setting-text">
+            <div class="setting-title">
+              プライバシー
+            </div>
+            <div class="setting-sub">
+              既読・オンライン表示など
+            </div>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-icon">🔔</div>
+
+          <div class="setting-text">
+            <div class="setting-title">
+              通知
+            </div>
+            <div class="setting-sub">
+              通知設定
+            </div>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-icon">🎨</div>
+
+          <div class="setting-text">
+            <div class="setting-title">
+              デザイン
+            </div>
+            <div class="setting-sub">
+              テーマ・背景
+            </div>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-icon">⚙️</div>
+
+          <div class="setting-text">
+            <div class="setting-title">
+              設定
+            </div>
+            <div class="setting-sub">
+              LOINの各種設定
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </section>
+
+
+  <!-- ================= BOTTOM NAV ================= -->
+
+  <nav class="bottom-nav">
+
+    <button
+      class="nav-btn active"
+      onclick="switchScreen('home', this)"
+    >
+      <span>🏠</span>
+      <span>ホーム</span>
+    </button>
+
+    <button
+      class="nav-btn"
+      onclick="switchScreen('talk', this)"
+    >
+      <span>💬</span>
+      <span>トーク</span>
+    </button>
+
+    <button
+      class="nav-btn"
+      onclick="switchScreen('friends', this)"
+    >
+      <span>👥</span>
+      <span>友達</span>
+    </button>
+
+    <button
+      class="nav-btn"
+      onclick="switchScreen('profile', this)"
+    >
+      <span>👤</span>
+      <span>自分</span>
+    </button>
+
+  </nav>
+
+
+  <!-- ================= CHAT ================= -->
+
+  <section id="chatScreen" class="chat-screen">
+
+    <header class="chat-header">
+
+      <button
+        class="icon-btn"
+        onclick="closeChat()"
+      >
+        ←
+      </button>
+
+      <div class="avatar">👤</div>
+
+      <div class="chat-header-info">
+        <div id="chatTitle" class="chat-header-name">
+          ○○
+        </div>
+
+        <div class="chat-header-status">
+          🟢 オンライン
+        </div>
+      </div>
+
+      <div class="chat-actions">
+
+        <button
+          class="icon-btn"
+          onclick="startVoiceCall()"
+        >
+          📞
+        </button>
+
+        <button
+          class="icon-btn"
+          onclick="startVideoCall()"
+        >
+          🎥
+        </button>
+
+      </div>
+
+    </header>
+
+    <div id="messages" class="messages">
+
+      <div class="message-row">
+        <div>
+          <div class="bubble">
+            明日の予定どうする？
+          </div>
+
+          <div class="message-meta">
+            12:02
+          </div>
+        </div>
+      </div>
+
+      <div class="message-row me">
+        <div>
+          <div class="bubble">
+            明日7時でいいよ！
+          </div>
+
+          <div class="message-meta">
+            12:03　既読
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="chat-input-area">
+
+      <button
+        class="icon-btn"
+        onclick="openChatActions()"
+      >
+        ＋
+      </button>
+
+      <input
+        id="chatInput"
+        class="chat-input"
+        placeholder="メッセージ"
+        onkeydown="handleInput(event)"
+      >
+
+      <button
+        class="icon-btn"
+        onclick="openStamps()"
+      >
+        😊
+      </button>
+
+      <button
+        class="send-btn"
+        onclick="sendMessage()"
+      >
+        ➤
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- ================= MODAL ================= -->
+
+  <div id="modal" class="modal" onclick="closeModal(event)">
+
+    <div
+      class="modal-box"
+      onclick="event.stopPropagation()"
+    >
+
+      <div id="modalTitle" class="modal-title">
+        LOIN
+      </div>
+
+      <div id="modalContent"></div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<script>
+
+/* =========================
+   画面切り替え
+========================= */
+
+function switchScreen(id, button) {
+
+  document
+    .querySelectorAll(".screen")
+    .forEach(screen => {
+      screen.classList.remove("active");
+    });
+
+  document
+    .getElementById(id)
+    .classList.add("active");
+
+  document
+    .querySelectorAll(".nav-btn")
+    .forEach(btn => {
+      btn.classList.remove("active");
+    });
+
+  if (button) {
+    button.classList.add("active");
+  }
+}
+
+
+/* =========================
+   チャット
+========================= */
+
+function openChat(name) {
+
+  document
+    .getElementById("chatTitle")
+    .textContent = name;
+
+  document
+    .getElementById("chatScreen")
+    .classList.add("active");
+
+  document
+    .getElementById("chatInput")
+    .focus();
+
+  scrollMessages();
+}
+
+
+function closeChat() {
+
+  document
+    .getElementById("chatScreen")
+    .classList.remove("active");
+}
+
+
+function sendMessage() {
+
+  const input =
+    document.getElementById("chatInput");
+
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  const row =
+    document.createElement("div");
+
+  row.className = "message-row me";
+
+  row.innerHTML = `
+    <div>
+      <div class="bubble"></div>
+
+      <div class="message-meta">
+        今　送信済み
+      </div>
+    </div>
+  `;
+
+  row.querySelector(".bubble").textContent = text;
+
+  document
+    .getElementById("messages")
+    .appendChild(row);
+
+  input.value = "";
+
+  scrollMessages();
+}
+
+
+function handleInput(event) {
+
+  if (
+    event.key === "Enter" &&
+    !event.shiftKey
+  ) {
+    event.preventDefault();
+    sendMessage();
+  }
+}
+
+
+function scrollMessages() {
+
+  const messages =
+    document.getElementById("messages");
+
+  messages.scrollTop =
+    messages.scrollHeight;
+}
+
+
+/* =========================
+   モーダル
+========================= */
+
+function openModal(title, html) {
+
+  document
+    .getElementById("modalTitle")
+    .textContent = title;
+
+  document
+    .getElementById("modalContent")
+    .innerHTML = html;
+
+  document
+    .getElementById("modal")
+    .classList.add("active");
+}
+
+
+function closeModal() {
+
+  document
+    .getElementById("modal")
+    .classList.remove("active");
+}
+
+
+/* =========================
+   各種機能
+========================= */
+
+function showNotifications() {
+
+  openModal(
+    "通知",
+    `
+      <button class="action">
+        🔔 ○○からメッセージ
+      </button>
+
+      <button class="action">
+        👤 △△から友達申請
+      </button>
+
+      <button class="action">
+        👥 ゲーム部に招待されました
+      </button>
+    `
+  );
+}
+
+
+function showSettings() {
+
+  openModal(
+    "設定",
+    `
+      <button class="action">👤 アカウント</button>
+      <button class="action">🔔 通知</button>
+      <button class="action">🔒 プライバシー</button>
+      <button class="action">🎨 デザイン</button>
+      <button class="action">❓ ヘルプ</button>
+    `
+  );
+}
+
+
+function addFriend() {
+
+  openModal(
+    "友達を追加",
+    `
+      <button class="action">🔍 LOIN IDで検索</button>
+      <button class="action">📷 QRコード</button>
+      <button class="action">🔗 招待リンク</button>
+    `
+  );
+}
+
+
+function newChat() {
+
+  openModal(
+    "新しいトーク",
+    `
+      <button class="action">💬 新しいチャット</button>
+      <button class="action">👥 グループを作成</button>
+    `
+  );
+}
+
+
+function openChatActions() {
+
+  openModal(
+    "送信する",
+    `
+      <button class="action">📷 写真・動画</button>
+      <button class="action">📁 ファイル</button>
+      <button class="action">🎤 音声メッセージ</button>
+      <button class="action">📍 位置情報</button>
+    `
+  );
+}
+
+
+function openStamps() {
+
+  openModal(
+    "スタンプ",
+    `
+      <button class="action">🕘 最近使った</button>
+      <button class="action">⭐ お気に入り</button>
+      <button class="action">🎨 自作スタンプ</button>
+      <button class="action">➕ スタンプを作る</button>
+    `
+  );
+}
+
+
+function openStampMaker() {
+
+  openModal(
+    "スタンプを作る",
+    `
+      <button class="action">
+        🖼️ 画像から作る
+      </button>
+
+      <button class="action">
+        ✏️ 文字から作る
+      </button>
+
+      <button class="action">
+        🎨 自由に描く
+      </button>
+    `
+  );
+}
+
+
+function startVoiceCall() {
+
+  openModal(
+    "音声通話",
+    `
+      <p class="muted">
+        音声通話機能は次の実装段階で接続します。
+      </p>
+    `
+  );
+}
+
+
+function startVideoCall() {
+
+  openModal(
+    "ビデオ通話",
+    `
+      <p class="muted">
+        ビデオ通話機能は次の実装段階で接続します。
+      </p>
+    `
+  );
+}
+
+
+function searchAll(value) {
+
+  if (!value.trim()) return;
+
+  console.log("LOIN検索:", value);
+}
+
+</script>
+
+</body>
+</html>
