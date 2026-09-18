@@ -624,6 +624,24 @@ button {
   min-height: 21px;
 }
 
+
+
+/* ===== LOIN FRIEND SYSTEM ===== */
+.friend-clickable { cursor:pointer; transition:background .15s; }
+.friend-clickable:hover { background:var(--main-light); }
+.friend-actions { margin-left:auto; display:flex; gap:8px; }
+.friend-action-btn { border:0; border-radius:12px; padding:8px 12px; background:var(--main-light); color:var(--main); cursor:pointer; font-weight:700; }
+.friend-action-btn.danger { background:#fff0f2; color:#e05260; }
+.empty-state { padding:24px; text-align:center; color:var(--sub); }
+.search-result { padding:14px 16px; border-bottom:1px solid var(--line); }
+.search-result:last-child { border-bottom:0; }
+.search-result-row { display:flex; align-items:center; gap:12px; }
+.search-result .friend-info { flex:1; }
+.search-result .friend-name { font-weight:700; }
+.search-result .friend-id { color:var(--sub); font-size:13px; margin-top:2px; }
+.status-pill { display:inline-block; margin-top:5px; font-size:12px; color:var(--sub); }
+.request-badge { display:inline-flex; min-width:22px; height:22px; padding:0 7px; align-items:center; justify-content:center; border-radius:999px; background:var(--danger); color:white; font-size:12px; font-weight:700; margin-left:6px; }
+
 </style>
 </head>
 
@@ -809,80 +827,23 @@ button {
 
     <header class="header">
       <div class="logo">友達</div>
-
       <button class="icon-btn" onclick="addFriend()">＋</button>
     </header>
 
     <main class="container">
+      <input id="friendSearchInput" class="search" placeholder="🔍 友達を検索" oninput="searchFriends(this.value)">
 
-      <input
-        class="search"
-        placeholder="🔍 友達を検索"
-      >
+      <button class="action" onclick="addFriend()">➕ 友達を追加</button>
 
-      <button
-        class="action"
-        onclick="addFriend()"
-      >
-        ➕ 友達を追加
-      </button>
-
-      <div class="section-title">オンライン</div>
-
-      <div class="card">
-
-        <div class="friend">
-          <div class="avatar">🧑</div>
-
-          <div class="friend-info">
-            <div class="friend-name">○○</div>
-            <div class="friend-status online">
-              🟢 オンライン
-            </div>
-          </div>
-        </div>
-
-        <div class="friend">
-          <div class="avatar">👩</div>
-
-          <div class="friend-info">
-            <div class="friend-name">△△</div>
-            <div class="friend-status online">
-              🟢 オンライン
-            </div>
-          </div>
-        </div>
-
+      <div id="friendRequestsSection" style="display:none;">
+        <div class="section-title">友達申請</div>
+        <div id="friendRequests" class="card"></div>
       </div>
 
-      <div class="section-title">すべての友達</div>
-
-      <div class="card">
-
-        <div class="friend">
-          <div class="avatar">👤</div>
-
-          <div class="friend-info">
-            <div class="friend-name">○○</div>
-            <div class="friend-status">
-              ゲーム中 🎮
-            </div>
-          </div>
-        </div>
-
-        <div class="friend">
-          <div class="avatar">🐶</div>
-
-          <div class="friend-info">
-            <div class="friend-name">□□</div>
-            <div class="friend-status">
-              最終オンライン 10分前
-            </div>
-          </div>
-        </div>
-
+      <div class="section-title">友達</div>
+      <div id="friendsList" class="card">
+        <div class="empty-state">友達を読み込んでいます……</div>
       </div>
-
     </main>
   </section>
 
@@ -1183,9 +1144,8 @@ button {
 
 <script>
 /* =========================================================
-   LOIN × SUPABASE
-   認証 + 1対1メッセージ保存 + リアルタイム受信
-========================================================= */
+   LOIN × SUPABASE — AUTH / FRIENDS / CHAT
+   ========================================================= */
 
 const SUPABASE_URL = "https://xkxnhhuupuarvlyyhqap.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_aIBHdcXogmoH2u9ImQPSnw_1PoYoeUq";
@@ -1194,43 +1154,30 @@ let supabase = null;
 let currentUser = null;
 let currentProfile = null;
 let currentChatName = null;
-let currentChatUserId = null;
+let currentChatUser = null;
 let currentChatChannel = null;
 let authMode = "login";
-let messageLoading = false;
-
-/* =========================
-   Supabase初期化
-========================= */
+let friendSearchTimer = null;
 
 const supabaseReady = import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm")
   .then(({ createClient }) => {
-    supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_PUBLISHABLE_KEY
-    );
+    supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
     return supabase;
   })
-  .catch(error => {
+  .catch((error) => {
     console.error("Supabaseの読み込みに失敗:", error);
-    showAuthMessage(
-      "Supabaseを読み込めませんでした。ページを再読み込みしてみてね。",
-      true
-    );
+    showAuthMessage("Supabaseを読み込めませんでした。ページを再読み込みしてみてね。", true);
     throw error;
   });
 
 window.addEventListener("DOMContentLoaded", async () => {
   try {
     await supabaseReady;
-
     await checkSession();
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
       currentUser = session?.user ?? null;
-
       if (currentUser) {
-        await ensureProfile();
         await loadProfile();
         showLOIN();
       } else {
@@ -1243,27 +1190,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-/* =========================
-   認証
-========================= */
-
 async function checkSession() {
   const { data, error } = await supabase.auth.getSession();
-
   if (error) {
     console.error("セッション取得エラー:", error);
-    showAuthMessage(
-      "ログイン状態を確認できませんでした。",
-      true
-    );
+    showAuthMessage("ログイン状態を確認できませんでした。", true);
     showAuth();
     return;
   }
-
   currentUser = data.session?.user ?? null;
-
   if (currentUser) {
-    await ensureProfile();
     await loadProfile();
     showLOIN();
   } else {
@@ -1284,1164 +1220,460 @@ function hideAuth() {
 
 function setAuthMode(mode) {
   authMode = mode;
-
-  const signupFields =
-    document.getElementById("loinSignupFields");
-  const loginTab =
-    document.getElementById("loinLoginTab");
-  const signupTab =
-    document.getElementById("loinSignupTab");
-  const button =
-    document.getElementById("loinAuthButton");
-  const password =
-    document.getElementById("loinPassword");
-
-  if (!signupFields || !loginTab || !signupTab || !button) {
-    return;
-  }
-
+  const signupFields = document.getElementById("loinSignupFields");
+  const loginTab = document.getElementById("loinLoginTab");
+  const signupTab = document.getElementById("loinSignupTab");
+  const button = document.getElementById("loinAuthButton");
+  const password = document.getElementById("loinPassword");
+  if (!signupFields || !loginTab || !signupTab || !button) return;
   const signup = mode === "signup";
-
-  signupFields.style.display =
-    signup ? "block" : "none";
-
+  signupFields.style.display = signup ? "block" : "none";
   loginTab.classList.toggle("active", !signup);
   signupTab.classList.toggle("active", signup);
-
-  button.textContent =
-    signup ? "LOINを始める" : "ログイン";
-
-  if (password) {
-    password.autocomplete =
-      signup ? "new-password" : "current-password";
-  }
-
+  button.textContent = signup ? "LOINを始める" : "ログイン";
+  if (password) password.autocomplete = signup ? "new-password" : "current-password";
   showAuthMessage("");
 }
 
 function showAuthMessage(message, isError = false) {
-  const el =
-    document.getElementById("loinAuthMessage");
-
+  const el = document.getElementById("loinAuthMessage");
   if (!el) return;
-
   el.textContent = message || "";
-  el.style.color =
-    isError ? "#e05260" : "#7d8490";
+  el.style.color = isError ? "#e05260" : "#7d8490";
 }
 
 async function submitAuth() {
   try {
     await supabaseReady;
+    const email = document.getElementById("loinEmail")?.value.trim();
+    const password = document.getElementById("loinPassword")?.value || "";
+    const button = document.getElementById("loinAuthButton");
 
-    const email =
-      document.getElementById("loinEmail")?.value.trim();
-
-    const password =
-      document.getElementById("loinPassword")?.value || "";
-
-    const button =
-      document.getElementById("loinAuthButton");
-
-    if (!email || !password) {
-      showAuthMessage(
-        "メールアドレスとパスワードを入力してね。",
-        true
-      );
-      return;
-    }
-
-    if (password.length < 6) {
-      showAuthMessage(
-        "パスワードは6文字以上にしてね。",
-        true
-      );
-      return;
-    }
-
+    if (!email || !password) return showAuthMessage("メールアドレスとパスワードを入力してね。", true);
+    if (password.length < 6) return showAuthMessage("パスワードは6文字以上にしてね。", true);
     if (button) button.disabled = true;
-
     showAuthMessage("処理中……");
 
-    /* ---------- 新規登録 ---------- */
-
     if (authMode === "signup") {
-      const displayName =
-        document.getElementById("loinDisplayName")
-          ?.value.trim();
+      const displayName = document.getElementById("loinDisplayName")?.value.trim();
+      const username = document.getElementById("loinUsername")?.value.trim().toLowerCase();
+      if (!displayName || !username) throw new Error("表示名とLOIN IDを入力してね。");
+      if (!/^[a-z0-9_]+$/.test(username)) throw new Error("LOIN IDは英数字と「_」だけ使えます。");
 
-      const username =
-        document.getElementById("loinUsername")
-          ?.value.trim()
-          .toLowerCase();
-
-      if (!displayName || !username) {
-        showAuthMessage(
-          "表示名とLOIN IDを入力してね。",
-          true
-        );
-        if (button) button.disabled = false;
-        return;
-      }
-
-      if (!/^[a-z0-9_]+$/.test(username)) {
-        showAuthMessage(
-          "LOIN IDは英数字と「_」だけ使えます。",
-          true
-        );
-        if (button) button.disabled = false;
-        return;
-      }
-
-      const { data, error } =
-        await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              username,
-              display_name: displayName
-            }
-          }
-        });
-
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username, display_name: displayName } }
+      });
       if (error) throw error;
-
-      if (!data.user) {
-        throw new Error(
-          "ユーザー登録に失敗しました。"
-        );
-      }
-
+      if (!data.user) throw new Error("ユーザー登録に失敗しました。");
       currentUser = data.user;
 
       if (!data.session) {
-        showAuthMessage(
-          "登録成功！確認メールが必要な設定なら、メールを確認してからログインしてね。"
-        );
-
+        showAuthMessage("登録成功！確認メールが必要な設定なら、メールを確認してからログインしてね。");
         if (button) button.disabled = false;
         return;
       }
-
       await ensureProfile();
       await loadProfile();
       showLOIN();
-
-      if (button) button.disabled = false;
-      return;
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      currentUser = data.user;
+      await ensureProfile();
+      await loadProfile();
+      showLOIN();
     }
-
-    /* ---------- ログイン ---------- */
-
-    const { data, error } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-    if (error) throw error;
-
-    currentUser = data.user;
-
-    await ensureProfile();
-    await loadProfile();
-    showLOIN();
-
     if (button) button.disabled = false;
-
   } catch (error) {
     console.error("認証エラー:", error);
-
-    showAuthMessage(
-      authErrorText(error),
-      true
-    );
-
-    const button =
-      document.getElementById("loinAuthButton");
-
+    showAuthMessage(authErrorText(error), true);
+    const button = document.getElementById("loinAuthButton");
     if (button) button.disabled = false;
   }
 }
 
 function authErrorText(error) {
-  const message =
-    String(error?.message || "");
-
-  const lower =
-    message.toLowerCase();
-
-  if (
-    lower.includes("invalid login credentials")
-  ) {
-    return "メールアドレスまたはパスワードが違います。";
-  }
-
-  if (
-    lower.includes("user already registered")
-  ) {
-    return "そのメールアドレスはすでに登録されています。ログインしてみてね。";
-  }
-
-  if (lower.includes("password")) {
-    return "パスワードを確認してね。6文字以上が必要です。";
-  }
-
-  if (lower.includes("email")) {
-    return "メールアドレスを確認してね。";
-  }
-
+  const message = String(error?.message || "");
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid login credentials")) return "メールアドレスまたはパスワードが違います。";
+  if (lower.includes("user already registered")) return "そのメールアドレスはすでに登録されています。ログインしてみてね。";
+  if (lower.includes("password")) return "パスワードを確認してね。6文字以上が必要です。";
+  if (lower.includes("email")) return "メールアドレスを確認してね。";
   return message || "認証に失敗しました。";
 }
 
-/* =========================
-   プロフィール
-========================= */
-
 async function ensureProfile() {
   if (!currentUser) return null;
+  const { data: existing, error: selectError } = await supabase.from("profiles").select("*").eq("id", currentUser.id).maybeSingle();
+  if (selectError) { console.error("プロフィール確認エラー:", selectError); return null; }
+  if (existing) { currentProfile = existing; return existing; }
 
-  const { data: existing, error: selectError } =
-    await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", currentUser.id)
-      .maybeSingle();
-
-  if (selectError) {
-    console.error(
-      "プロフィール確認エラー:",
-      selectError
-    );
-    return null;
-  }
-
-  if (existing) {
-    currentProfile = existing;
-    return existing;
-  }
-
-  const metadata =
-    currentUser.user_metadata || {};
-
-  const displayName =
-    metadata.display_name || "LOINユーザー";
-
-  const username =
-    metadata.username ||
-    `loin_${currentUser.id
-      .replace(/-/g, "")
-      .slice(0, 8)}`;
-
-  const { data: created, error: insertError } =
-    await supabase
-      .from("profiles")
-      .insert({
-        id: currentUser.id,
-        username,
-        display_name: displayName,
-        status: "オンライン"
-      })
-      .select()
-      .single();
-
-  if (insertError) {
-    console.error(
-      "プロフィール作成エラー:",
-      insertError
-    );
-
-    return null;
-  }
-
+  const metadata = currentUser.user_metadata || {};
+  const displayName = metadata.display_name || "LOINユーザー";
+  const username = metadata.username || `loin_${currentUser.id.replace(/-/g, "").slice(0, 8)}`;
+  const { data: created, error: insertError } = await supabase.from("profiles").insert({
+    id: currentUser.id, username, display_name: displayName, status: "オンライン"
+  }).select().single();
+  if (insertError) { console.error("プロフィール作成エラー:", insertError); return null; }
   currentProfile = created;
   return created;
 }
 
 async function loadProfile() {
   if (!currentUser) return;
-
-  const { data, error } =
-    await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", currentUser.id)
-      .maybeSingle();
-
-  if (error) {
-    console.error(
-      "プロフィール取得エラー:",
-      error
-    );
-    return;
-  }
-
-  currentProfile = data;
-
-  if (!currentProfile) {
-    await ensureProfile();
-  }
-
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", currentUser.id).maybeSingle();
+  if (error) { console.error("プロフィール取得エラー:", error); return; }
+  currentProfile = data || await ensureProfile();
   updateProfileUI();
 }
 
 function updateProfileUI() {
   if (!currentProfile) return;
-
-  const displayName =
-    currentProfile.display_name ||
-    "LOINユーザー";
-
-  const username =
-    currentProfile.username ||
-    "loin_user";
-
-  const status =
-    currentProfile.status ||
-    "オンライン";
-
-  const welcome =
-    document.querySelector(".welcome h1");
-
-  if (welcome) {
-    welcome.textContent =
-      `こんにちは、${displayName}！`;
-  }
-
-  const profileName =
-    document.querySelector(".profile-name");
-
-  if (profileName) {
-    profileName.textContent =
-      displayName;
-  }
-
-  const profileId =
-    document.querySelector(".profile-id");
-
-  if (profileId) {
-    profileId.textContent =
-      "@" + username;
-  }
-
-  const profileStatus =
-    document.querySelector(".profile-status");
-
-  if (profileStatus) {
-    profileStatus.textContent =
-      "🟢 " + status;
-  }
+  const displayName = currentProfile.display_name || "LOINユーザー";
+  const username = currentProfile.username || "loin_user";
+  const status = currentProfile.status || "オンライン";
+  const welcome = document.querySelector(".welcome h1");
+  if (welcome) welcome.textContent = `こんにちは、${displayName}！`;
+  const profileName = document.querySelector(".profile-name");
+  if (profileName) profileName.textContent = displayName;
+  const profileId = document.querySelector(".profile-id");
+  if (profileId) profileId.textContent = "@" + username;
+  const profileStatus = document.querySelector(".profile-status");
+  if (profileStatus) profileStatus.textContent = "🟢 " + status;
 }
 
-function showLOIN() {
+async function showLOIN() {
   hideAuth();
   updateProfileUI();
+  await loadFriends();
 }
 
 async function logoutLOIN() {
   await supabaseReady;
-
-  await leaveChatRealtime();
-
-  const { error } =
-    await supabase.auth.signOut();
-
-  if (error) {
-    console.error(error);
-    alert("ログアウトに失敗しました。");
-    return;
-  }
-
-  currentUser = null;
-  currentProfile = null;
-  currentChatUserId = null;
-
+  if (currentChatChannel) { await supabase.removeChannel(currentChatChannel); currentChatChannel = null; }
+  const { error } = await supabase.auth.signOut();
+  if (error) return alert("ログアウトに失敗しました。");
+  currentUser = null; currentProfile = null; currentChatUser = null;
   showAuth();
 }
 
 /* =========================
    画面切り替え
 ========================= */
-
 function switchScreen(id, button) {
-  document
-    .querySelectorAll(".screen")
-    .forEach(screen => {
-      screen.classList.remove("active");
-    });
-
-  const target =
-    document.getElementById(id);
-
-  if (target) {
-    target.classList.add("active");
-  }
-
-  document
-    .querySelectorAll(".nav-btn")
-    .forEach(btn => {
-      btn.classList.remove("active");
-    });
-
-  if (button) {
-    button.classList.add("active");
-  }
+  document.querySelectorAll(".screen").forEach(screen => screen.classList.remove("active"));
+  const target = document.getElementById(id);
+  if (target) target.classList.add("active");
+  document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.remove("active"));
+  if (button) button.classList.add("active");
+  if (id === "friends" && currentUser) loadFriends();
 }
 
-/* =========================================================
-   1対1チャット
-========================================================= */
+/* =========================
+   友達システム
+========================= */
 
-async function openChat(name, userId = null) {
-  if (!currentUser) {
-    showAuth();
+async function loadFriends() {
+  if (!supabase || !currentUser) return;
+  const list = document.getElementById("friendsList");
+  if (!list) return;
+  list.innerHTML = `<div class="empty-state">読み込み中……</div>`;
+
+  const { data: rows, error } = await supabase
+    .from("friendships")
+    .select("id, requester_id, addressee_id, status, created_at")
+    .or(`requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`)
+    .eq("status", "accepted")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("友達取得エラー:", error);
+    list.innerHTML = `<div class="empty-state">友達を読み込めませんでした。<br><small>${escapeHtml(error.message)}</small></div>`;
     return;
   }
 
-  currentChatName = name;
-  currentChatUserId = userId;
-
-  /*
-    実在ユーザーIDが渡されていない場合、
-    表示名からプロフィールを探す。
-  */
-  if (!currentChatUserId) {
-    const { data, error } =
-      await supabase
-        .from("profiles")
-        .select("id, display_name, username, status")
-        .eq("display_name", name)
-        .neq("id", currentUser.id)
-        .limit(1)
-        .maybeSingle();
-
-    if (!error && data) {
-      currentChatUserId = data.id;
-      currentChatName =
-        data.display_name || data.username;
+  const ids = [...new Set((rows || []).map(row => row.requester_id === currentUser.id ? row.addressee_id : row.requester_id))];
+  if (!ids.length) {
+    list.innerHTML = `<div class="empty-state">まだ友達がいません。<br>「＋ 友達を追加」から探してみよう！</div>`;
+  } else {
+    const { data: profiles, error: profileError } = await supabase.from("profiles").select("id, username, display_name, avatar_url, status").in("id", ids);
+    if (profileError) {
+      console.error(profileError);
+      list.innerHTML = `<div class="empty-state">友達情報の取得に失敗しました。</div>`;
+    } else {
+      const map = new Map((profiles || []).map(p => [p.id, p]));
+      list.innerHTML = ids.map(id => friendCard(map.get(id))).join("");
     }
   }
+  await loadFriendRequests();
+}
 
-  const title =
-    document.getElementById("chatTitle");
+function friendCard(profile) {
+  if (!profile) return "";
+  const name = escapeHtml(profile.display_name || profile.username || "LOINユーザー");
+  const username = escapeHtml(profile.username || "loin_user");
+  const status = escapeHtml(profile.status || "オンライン");
+  const avatar = profile.avatar_url ? `<img src="${escapeAttr(profile.avatar_url)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">` : `<div class="avatar">👤</div>`;
+  return `<div class="friend friend-clickable" onclick='openChatUser(${JSON.stringify(profile.id)}, ${JSON.stringify(profile.display_name || profile.username || "LOINユーザー")})'>
+    ${avatar}<div class="friend-info"><div class="friend-name">${name}</div><div class="friend-status">@${username}<br>🟢 ${status}</div></div>
+  </div>`;
+}
 
-  if (title) {
-    title.textContent =
-      currentChatName || "トーク";
+async function loadFriendRequests() {
+  if (!currentUser) return;
+  const section = document.getElementById("friendRequestsSection");
+  const box = document.getElementById("friendRequests");
+  if (!section || !box) return;
+
+  const { data: rows, error } = await supabase.from("friendships")
+    .select("id, requester_id, addressee_id, status, created_at")
+    .eq("addressee_id", currentUser.id).eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) { console.error(error); section.style.display = "none"; return; }
+  if (!rows?.length) { section.style.display = "none"; return; }
+
+  const ids = rows.map(r => r.requester_id);
+  const { data: profiles } = await supabase.from("profiles").select("id, username, display_name, avatar_url, status").in("id", ids);
+  const map = new Map((profiles || []).map(p => [p.id, p]));
+  section.style.display = "block";
+  box.innerHTML = rows.map(row => {
+    const p = map.get(row.requester_id) || { display_name:"LOINユーザー", username:"loin_user" };
+    return `<div class="friend"><div class="avatar">👤</div><div class="friend-info"><div class="friend-name">${escapeHtml(p.display_name)}</div><div class="friend-status">@${escapeHtml(p.username)}</div></div><div class="friend-actions"><button class="friend-action-btn" onclick="acceptFriend(${JSON.stringify(row.id)})">承認</button><button class="friend-action-btn danger" onclick="rejectFriend(${JSON.stringify(row.id)})">拒否</button></div></div>`;
+  }).join("");
+}
+
+async function searchFriends(value) {
+  clearTimeout(friendSearchTimer);
+  const q = value.trim().replace(/^@/, "");
+  const list = document.getElementById("friendsList");
+  if (!list) return;
+  if (!q) { await loadFriends(); return; }
+  friendSearchTimer = setTimeout(async () => {
+    const { data, error } = await supabase.from("profiles").select("id, username, display_name, avatar_url, status").ilike("username", `%${q}%`).limit(20);
+    if (error) { list.innerHTML = `<div class="empty-state">検索に失敗しました。</div>`; return; }
+    const filtered = (data || []).filter(p => p.id !== currentUser?.id);
+    list.innerHTML = filtered.length ? filtered.map(p => searchResultCard(p)).join("") : `<div class="empty-state">「${escapeHtml(q)}」に一致するユーザーはいません。</div>`;
+  }, 250);
+}
+
+function searchResultCard(p) {
+  const name = escapeHtml(p.display_name || p.username);
+  const username = escapeHtml(p.username);
+  return `<div class="search-result"><div class="search-result-row"><div class="avatar">👤</div><div class="friend-info"><div class="friend-name">${name}</div><div class="friend-id">@${username}</div><span class="status-pill">${escapeHtml(p.status || "オンライン")}</span></div><button class="friend-action-btn" onclick='sendFriendRequest(${JSON.stringify(p.id)}, ${JSON.stringify(p.display_name || p.username)})'>追加</button></div></div>`;
+}
+
+async function addFriend() {
+  openModal("友達を追加", `
+    <p class="muted" style="margin-bottom:12px;">LOIN IDで友達を探せます。</p>
+    <input id="modalFriendSearch" class="search" placeholder="例：loin_user" oninput="searchModalUsers(this.value)">
+    <div id="modalFriendResults" class="card" style="margin-top:12px;"></div>
+    <button class="action" onclick="showMyLOINId()">🆔 自分のLOIN IDを見る</button>
+  `);
+}
+
+let modalSearchTimer = null;
+async function searchModalUsers(value) {
+  clearTimeout(modalSearchTimer);
+  const box = document.getElementById("modalFriendResults");
+  if (!box) return;
+  const q = value.trim().replace(/^@/, "");
+  if (!q) { box.innerHTML = `<div class="empty-state">LOIN IDを入力してください。</div>`; return; }
+  modalSearchTimer = setTimeout(async () => {
+    const { data, error } = await supabase.from("profiles").select("id, username, display_name, avatar_url, status").ilike("username", `%${q}%`).limit(20);
+    if (error) { box.innerHTML = `<div class="empty-state">検索に失敗しました。</div>`; return; }
+    const users = (data || []).filter(p => p.id !== currentUser?.id);
+    if (!users.length) { box.innerHTML = `<div class="empty-state">ユーザーが見つかりません。</div>`; return; }
+    box.innerHTML = users.map(searchResultCard).join("");
+  }, 250);
+}
+
+async function sendFriendRequest(targetId, targetName) {
+  if (!currentUser || targetId === currentUser.id) return;
+  const { data: existing } = await supabase.from("friendships").select("id,status,requester_id,addressee_id")
+    .or(`and(requester_id.eq.${currentUser.id},addressee_id.eq.${targetId}),and(requester_id.eq.${targetId},addressee_id.eq.${currentUser.id})`).maybeSingle();
+  if (existing) {
+    if (existing.status === "accepted") return alert("すでに友達です！");
+    if (existing.requester_id === targetId) return alert("相手からの友達申請が届いています。友達画面から承認してね！");
+    return alert("すでに友達申請を送っています。");
   }
+  const { error } = await supabase.from("friendships").insert({ requester_id: currentUser.id, addressee_id: targetId, status: "pending" });
+  if (error) return alert(error.message.includes("duplicate") ? "すでに申請しています。" : "友達申請を送れませんでした。");
+  alert(`${targetName}さんに友達申請を送りました！`);
+  closeModal();
+}
 
-  document
-    .getElementById("chatScreen")
-    .classList.add("active");
+async function acceptFriend(friendshipId) {
+  const { error } = await supabase.from("friendships").update({ status: "accepted" }).eq("id", friendshipId).eq("addressee_id", currentUser.id);
+  if (error) return alert("承認に失敗しました。");
+  await loadFriends();
+}
 
-  clearMessages();
+async function rejectFriend(friendshipId) {
+  const { error } = await supabase.from("friendships").delete().eq("id", friendshipId).eq("addressee_id", currentUser.id);
+  if (error) return alert("申請を拒否できませんでした。");
+  await loadFriends();
+}
 
-  if (!currentChatUserId) {
-    renderSystemMessage(
-      "この相手はまだLOINに登録されていません。友達検索からLOIN IDで探してみてね。"
-    );
-    return;
-  }
+function showMyLOINId() {
+  const id = currentProfile?.username || "loin_user";
+  openModal("あなたのLOIN ID", `<div style="text-align:center;padding:18px;"><div class="muted">友達に伝えてね</div><div style="font-size:28px;font-weight:800;margin-top:8px;">@${escapeHtml(id)}</div></div>`);
+}
 
-  await loadMessages();
-  await subscribeToMessages();
+/* =========================
+   チャット
+========================= */
 
-  const input =
-    document.getElementById("chatInput");
+async function openChatUser(userId, name) {
+  if (!currentUser || !userId) return;
+  currentChatUser = { id: userId, name: name || "LOINユーザー" };
+  currentChatName = currentChatUser.name;
+  document.getElementById("chatTitle").textContent = currentChatName;
+  document.getElementById("chatScreen").classList.add("active");
+  await loadChatMessages();
+  subscribeChat();
+  document.getElementById("chatInput")?.focus();
+}
 
-  if (input) input.focus();
-
+async function openChat(name) {
+  // 既存のサンプルUIから呼ばれた場合は名前だけ表示。
+  // 実際の友達は openChatUser() を使う。
+  currentChatName = name;
+  currentChatUser = null;
+  document.getElementById("chatTitle").textContent = name;
+  document.getElementById("chatScreen").classList.add("active");
+  document.getElementById("chatInput")?.focus();
   scrollMessages();
 }
 
 function closeChat() {
-  leaveChatRealtime();
-
-  const screen =
-    document.getElementById("chatScreen");
-
-  if (screen) {
-    screen.classList.remove("active");
-  }
-
-  currentChatUserId = null;
-  currentChatName = null;
-}
-
-async function leaveChatRealtime() {
-  if (
-    supabase &&
-    currentChatChannel
-  ) {
-    try {
-      await supabase.removeChannel(
-        currentChatChannel
-      );
-    } catch (error) {
-      console.warn(
-        "Realtimeチャンネル終了:",
-        error
-      );
-    }
-
+  document.getElementById("chatScreen").classList.remove("active");
+  if (currentChatChannel) {
+    supabase.removeChannel(currentChatChannel);
     currentChatChannel = null;
   }
+  currentChatUser = null;
 }
 
-/* =========================
-   メッセージ取得
-========================= */
-
-async function loadMessages() {
-  if (
-    !currentUser ||
-    !currentChatUserId
-  ) return;
-
-  messageLoading = true;
-
-  const { data, error } =
-    await supabase
-      .from("messages")
-      .select(
-        "id, sender_id, receiver_id, content, created_at"
-      )
-      .or(
-        `and(sender_id.eq.${currentUser.id},receiver_id.eq.${currentChatUserId}),and(sender_id.eq.${currentChatUserId},receiver_id.eq.${currentUser.id})`
-      )
-      .order("created_at", {
-        ascending: true
-      });
-
-  messageLoading = false;
-
-  if (error) {
-    console.error(
-      "メッセージ取得エラー:",
-      error
-    );
-
-    renderSystemMessage(
-      "メッセージを読み込めませんでした。"
-    );
-    return;
-  }
-
-  clearMessages();
-
-  (data || []).forEach(message => {
-    renderMessage(message);
-  });
-
+async function loadChatMessages() {
+  const box = document.getElementById("messages");
+  if (!box || !currentChatUser) return;
+  box.innerHTML = `<div class="empty-state">メッセージを読み込んでいます……</div>`;
+  const { data, error } = await supabase.from("messages").select("id,sender_id,receiver_id,content,created_at")
+    .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${currentChatUser.id}),and(sender_id.eq.${currentChatUser.id},receiver_id.eq.${currentUser.id})`)
+    .order("created_at", { ascending: true });
+  if (error) { console.error(error); box.innerHTML = `<div class="empty-state">メッセージを読み込めませんでした。</div>`; return; }
+  box.innerHTML = "";
+  (data || []).forEach(renderMessage);
   scrollMessages();
 }
 
-/* =========================
-   メッセージ送信
-========================= */
+function subscribeChat() {
+  if (!currentChatUser) return;
+  if (currentChatChannel) supabase.removeChannel(currentChatChannel);
+  currentChatChannel = supabase.channel(`loin-chat-${currentUser.id}-${currentChatUser.id}`)
+    .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages" }, payload => {
+      const m = payload.new;
+      if ((m.sender_id === currentUser.id && m.receiver_id === currentChatUser.id) || (m.sender_id === currentChatUser.id && m.receiver_id === currentUser.id)) {
+        renderMessage(m);
+        scrollMessages();
+      }
+    })
+    .subscribe();
+}
+
+function renderMessage(message) {
+  const box = document.getElementById("messages");
+  if (!box) return;
+  const row = document.createElement("div");
+  const mine = message.sender_id === currentUser?.id;
+  row.className = `message-row ${mine ? "me" : ""}`;
+  const time = new Date(message.created_at || Date.now()).toLocaleTimeString("ja-JP", { hour:"2-digit", minute:"2-digit" });
+  row.innerHTML = `<div><div class="bubble"></div><div class="message-meta">${time}${mine ? "　送信済み" : ""}</div></div>`;
+  row.querySelector(".bubble").textContent = message.content || "";
+  box.appendChild(row);
+}
 
 async function sendMessage() {
-  if (!currentUser) {
-    showAuth();
+  const input = document.getElementById("chatInput");
+  const text = input?.value.trim();
+  if (!text || !currentUser) return;
+
+  if (!currentChatUser) {
+    // サンプルチャットは従来通りローカル表示。
+    const row = document.createElement("div");
+    row.className = "message-row me";
+    row.innerHTML = `<div><div class="bubble"></div><div class="message-meta">今　送信済み</div></div>`;
+    row.querySelector(".bubble").textContent = text;
+    document.getElementById("messages").appendChild(row);
+    input.value = "";
+    scrollMessages();
     return;
   }
 
-  if (!currentChatUserId) {
-    alert(
-      "まず友達検索からチャット相手を選んでね。"
-    );
-    return;
-  }
-
-  const input =
-    document.getElementById("chatInput");
-
-  const text =
-    input?.value.trim();
-
-  if (!text) return;
-
-  const sendButton =
-    document.querySelector(".send-btn");
-
-  if (sendButton) {
-    sendButton.disabled = true;
-  }
-
-  const { data, error } =
-    await supabase
-      .from("messages")
-      .insert({
-        sender_id: currentUser.id,
-        receiver_id: currentChatUserId,
-        content: text
-      })
-      .select(
-        "id, sender_id, receiver_id, content, created_at"
-      )
-      .single();
-
-  if (sendButton) {
-    sendButton.disabled = false;
-  }
-
+  input.disabled = true;
+  const { error } = await supabase.from("messages").insert({
+    sender_id: currentUser.id,
+    receiver_id: currentChatUser.id,
+    content: text
+  });
+  input.disabled = false;
   if (error) {
-    console.error(
-      "メッセージ送信エラー:",
-      error
-    );
-
-    alert(
-      "メッセージを送信できませんでした。"
-    );
+    console.error("メッセージ送信エラー:", error);
+    alert("メッセージを送信できませんでした。");
     return;
   }
-
-  /*
-    Realtimeが正常に届く環境では
-    subscription側で表示される。
-    届かなかった場合にも自分の画面に出すため、
-    既に同じIDが存在しない時だけ表示。
-  */
-  if (
-    data &&
-    !document.querySelector(
-      `[data-message-id="${data.id}"]`
-    )
-  ) {
-    renderMessage(data);
-  }
-
   input.value = "";
-  scrollMessages();
 }
 
 function handleInput(event) {
-  if (
-    event.key === "Enter" &&
-    !event.shiftKey
-  ) {
+  if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     sendMessage();
   }
 }
 
 function scrollMessages() {
-  const messages =
-    document.getElementById("messages");
-
-  if (messages) {
-    messages.scrollTop =
-      messages.scrollHeight;
-  }
-}
-
-/* =========================
-   メッセージ描画
-========================= */
-
-function clearMessages() {
-  const messages =
-    document.getElementById("messages");
-
-  if (messages) {
-    messages.innerHTML = "";
-  }
-}
-
-function renderMessage(message) {
-  const messages =
-    document.getElementById("messages");
-
-  if (!messages) return;
-
-  if (
-    document.querySelector(
-      `[data-message-id="${message.id}"]`
-    )
-  ) {
-    return;
-  }
-
-  const mine =
-    message.sender_id === currentUser?.id;
-
-  const row =
-    document.createElement("div");
-
-  row.className =
-    "message-row" +
-    (mine ? " me" : "");
-
-  row.dataset.messageId =
-    message.id;
-
-  const time =
-    formatMessageTime(
-      message.created_at
-    );
-
-  row.innerHTML = `
-    <div>
-      <div class="bubble"></div>
-      <div class="message-meta">
-        ${time}${mine ? "　送信済み" : ""}
-      </div>
-    </div>
-  `;
-
-  row.querySelector(".bubble")
-    .textContent =
-    message.content;
-
-  messages.appendChild(row);
-
-  scrollMessages();
-}
-
-function renderSystemMessage(text) {
-  const messages =
-    document.getElementById("messages");
-
-  if (!messages) return;
-
-  const row =
-    document.createElement("div");
-
-  row.style.textAlign = "center";
-  row.style.padding = "20px";
-  row.style.color = "#7d8490";
-  row.style.fontSize = "13px";
-
-  row.textContent = text;
-
-  messages.appendChild(row);
-}
-
-function formatMessageTime(dateString) {
-  if (!dateString) return "";
-
-  const date =
-    new Date(dateString);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return date.toLocaleTimeString(
-    "ja-JP",
-    {
-      hour: "2-digit",
-      minute: "2-digit"
-    }
-  );
-}
-
-/* =========================
-   Supabase Realtime
-========================= */
-
-async function subscribeToMessages() {
-  if (
-    !currentUser ||
-    !currentChatUserId ||
-    !supabase
-  ) {
-    return;
-  }
-
-  await leaveChatRealtime();
-
-  const channelName =
-    `loin-chat-${currentUser.id}-${currentChatUserId}`;
-
-  currentChatChannel =
-    supabase
-      .channel(channelName)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages"
-        },
-        payload => {
-          const message =
-            payload.new;
-
-          const belongsToChat =
-            (
-              message.sender_id ===
-                currentUser.id &&
-              message.receiver_id ===
-                currentChatUserId
-            ) ||
-            (
-              message.sender_id ===
-                currentChatUserId &&
-              message.receiver_id ===
-                currentUser.id
-            );
-
-          if (!belongsToChat) {
-            return;
-          }
-
-          renderMessage(message);
-        }
-      )
-      .subscribe(status => {
-        console.log(
-          "LOIN Realtime:",
-          status
-        );
-      });
-}
-
-/* =========================================================
-   友達・ユーザー検索
-========================================================= */
-
-function addFriend() {
-  openModal(
-    "友達を追加",
-    `
-      <input
-        id="friendSearchInput"
-        class="loin-auth-input"
-        placeholder="LOIN IDを入力"
-        autocomplete="off"
-        style="margin-bottom:10px;"
-      >
-
-      <button
-        class="action"
-        onclick="searchFriend()"
-      >
-        🔍 LOIN IDを検索
-      </button>
-
-      <div
-        id="friendSearchResults"
-        style="margin-top:10px;"
-      ></div>
-
-      <button
-        class="action"
-        onclick="showMyLOINId()"
-      >
-        🆔 自分のLOIN IDを見る
-      </button>
-
-      <button
-        class="action"
-        onclick="showInviteInfo()"
-      >
-        🔗 招待リンク
-      </button>
-    `
-  );
-
-  setTimeout(() => {
-    const input =
-      document.getElementById(
-        "friendSearchInput"
-      );
-
-    if (input) {
-      input.focus();
-
-      input.addEventListener(
-        "keydown",
-        event => {
-          if (event.key === "Enter") {
-            searchFriend();
-          }
-        }
-      );
-    }
-  }, 50);
-}
-
-async function searchFriend() {
-  const input =
-    document.getElementById(
-      "friendSearchInput"
-    );
-
-  const results =
-    document.getElementById(
-      "friendSearchResults"
-    );
-
-  const username =
-    input?.value.trim().toLowerCase();
-
-  if (!username) {
-    if (results) {
-      results.innerHTML =
-        `<p class="muted">LOIN IDを入力してね。</p>`;
-    }
-    return;
-  }
-
-  if (username === currentProfile?.username) {
-    if (results) {
-      results.innerHTML =
-        `<p class="muted">自分自身は検索できないよ。</p>`;
-    }
-    return;
-  }
-
-  if (results) {
-    results.innerHTML =
-      `<p class="muted">検索中……</p>`;
-  }
-
-  const { data, error } =
-    await supabase
-      .from("profiles")
-      .select(
-        "id, username, display_name, avatar_url, status"
-      )
-      .eq("username", username)
-      .maybeSingle();
-
-  if (error) {
-    console.error(
-      "友達検索エラー:",
-      error
-    );
-
-    if (results) {
-      results.innerHTML =
-        `<p class="muted">検索に失敗しました。</p>`;
-    }
-
-    return;
-  }
-
-  if (!data) {
-    if (results) {
-      results.innerHTML = `
-        <div class="card" style="margin-top:8px;">
-          <div style="font-weight:700;margin-bottom:5px;">
-            見つかりませんでした
-          </div>
-          <div class="muted">
-            「@${escapeHTML(username)}」というLOIN IDはありません。
-          </div>
-        </div>
-      `;
-    }
-
-    return;
-  }
-
-  if (results) {
-    results.innerHTML = `
-      <div class="card" style="margin-top:8px;">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div class="avatar">👤</div>
-
-          <div style="flex:1;">
-            <div style="font-weight:800;">
-              ${escapeHTML(data.display_name)}
-            </div>
-
-            <div class="muted">
-              @${escapeHTML(data.username)}
-            </div>
-
-            <div class="muted" style="font-size:12px;margin-top:3px;">
-              ${escapeHTML(data.status || "オンライン")}
-            </div>
-          </div>
-        </div>
-
-        <button
-          class="loin-auth-submit"
-          style="margin-top:12px;"
-          onclick="startChatWithUser(
-            '${data.id}',
-            '${escapeJS(data.display_name)}'
-          )"
-        >
-          💬 トークを開始
-        </button>
-      </div>
-    `;
-  }
-}
-
-function startChatWithUser(userId, displayName) {
-  closeModal();
-  openChat(displayName, userId);
-}
-
-function showMyLOINId() {
-  const username =
-    currentProfile?.username ||
-    "loin_user";
-
-  openModal(
-    "あなたのLOIN ID",
-    `
-      <div style="text-align:center;padding:10px 0 20px;">
-        <div class="muted">
-          友達にこのIDを教えてね
-        </div>
-
-        <div
-          style="
-            font-size:28px;
-            font-weight:900;
-            margin:15px 0;
-          "
-        >
-          @${escapeHTML(username)}
-        </div>
-
-        <button
-          class="loin-auth-submit"
-          onclick="copyMyLOINId()"
-        >
-          📋 IDをコピー
-        </button>
-      </div>
-    `
-  );
-}
-
-async function copyMyLOINId() {
-  const username =
-    currentProfile?.username;
-
-  if (!username) return;
-
-  try {
-    await navigator.clipboard.writeText(
-      "@" + username
-    );
-
-    alert("LOIN IDをコピーしたよ！");
-  } catch {
-    alert(
-      "コピーできなかったので、IDを長押ししてコピーしてね。"
-    );
-  }
-}
-
-function showInviteInfo() {
-  openModal(
-    "招待リンク",
-    `
-      <p class="muted" style="line-height:1.7;">
-        招待リンク機能はこれから追加予定！<br>
-        今はLOIN IDを友達に教えて追加できるよ。
-      </p>
-    `
-  );
-}
-
-function escapeHTML(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function escapeJS(value) {
-  return String(value ?? "")
-    .replaceAll("\\", "\\\\")
-    .replaceAll("'", "\\'")
-    .replaceAll("\n", "\\n")
-    .replaceAll("\r", "\\r");
+  const messages = document.getElementById("messages");
+  if (messages) messages.scrollTop = messages.scrollHeight;
 }
 
 /* =========================
    モーダル
 ========================= */
-
 function openModal(title, html) {
-  document
-    .getElementById("modalTitle")
-    .textContent = title;
-
-  document
-    .getElementById("modalContent")
-    .innerHTML = html;
-
-  document
-    .getElementById("modal")
-    .classList.add("active");
+  document.getElementById("modalTitle").textContent = title;
+  document.getElementById("modalContent").innerHTML = html;
+  document.getElementById("modal").classList.add("active");
 }
-
-function closeModal() {
-  document
-    .getElementById("modal")
-    .classList.remove("active");
-}
+function closeModal() { document.getElementById("modal").classList.remove("active"); }
 
 /* =========================
-   各種機能
+   通知 / 設定 / その他
 ========================= */
-
-function showNotifications() {
-  openModal(
-    "通知",
-    `
-      <button class="action">
-        🔔 ○○からメッセージ
-      </button>
-
-      <button class="action">
-        👤 △△から友達申請
-      </button>
-
-      <button class="action">
-        👥 ゲーム部に招待されました
-      </button>
-    `
-  );
+async function showNotifications() {
+  let requestCount = 0;
+  if (currentUser) {
+    const { count } = await supabase.from("friendships").select("id", { count:"exact", head:true }).eq("addressee_id", currentUser.id).eq("status", "pending");
+    requestCount = count || 0;
+  }
+  openModal("通知", `
+    <button class="action" onclick="closeModal();switchScreen('friends',document.querySelectorAll('.nav-btn')[2])">👤 友達申請 ${requestCount ? `<span class='request-badge'>${requestCount}</span>` : ""}</button>
+    <button class="action">🔔 メッセージ通知はここに追加できます</button>
+  `);
 }
 
 function showSettings() {
-  openModal(
-    "設定",
-    `
-      <button class="action">
-        👤 アカウント
-      </button>
-
-      <button class="action">
-        🔔 通知
-      </button>
-
-      <button class="action">
-        🔒 プライバシー
-      </button>
-
-      <button class="action">
-        🎨 デザイン
-      </button>
-
-      <button class="action">
-        ❓ ヘルプ
-      </button>
-
-      <button
-        class="action"
-        onclick="logoutLOIN()"
-        style="color:#e05260;"
-      >
-        🚪 ログアウト
-      </button>
-    `
-  );
+  openModal("設定", `
+    <button class="action">👤 アカウント</button>
+    <button class="action">🔔 通知</button>
+    <button class="action">🔒 プライバシー</button>
+    <button class="action">🎨 デザイン</button>
+    <button class="action">❓ ヘルプ</button>
+    <button class="action" onclick="logoutLOIN()" style="color:#e05260;">🚪 ログアウト</button>
+  `);
 }
 
 function newChat() {
@@ -2449,103 +1681,25 @@ function newChat() {
 }
 
 function openChatActions() {
-  openModal(
-    "送信する",
-    `
-      <button class="action">
-        📷 写真・動画
-      </button>
-
-      <button class="action">
-        📁 ファイル
-      </button>
-
-      <button class="action">
-        🎤 音声メッセージ
-      </button>
-
-      <button class="action">
-        📍 位置情報
-      </button>
-    `
-  );
+  openModal("送信する", `<button class="action">📷 写真・動画</button><button class="action">📁 ファイル</button><button class="action">🎤 音声メッセージ</button><button class="action">📍 位置情報</button>`);
 }
 
 function openStamps() {
-  openModal(
-    "スタンプ",
-    `
-      <button class="action">
-        🕘 最近使った
-      </button>
-
-      <button class="action">
-        ⭐ お気に入り
-      </button>
-
-      <button class="action">
-        🎨 自作スタンプ
-      </button>
-
-      <button
-        class="action"
-        onclick="openStampMaker()"
-      >
-        ➕ スタンプを作る
-      </button>
-    `
-  );
+  openModal("スタンプ", `<button class="action">🕘 最近使った</button><button class="action">⭐ お気に入り</button><button class="action">🎨 自作スタンプ</button><button class="action" onclick="openStampMaker()">➕ スタンプを作る</button>`);
 }
 
 function openStampMaker() {
-  openModal(
-    "スタンプを作る",
-    `
-      <button class="action">
-        🖼️ 画像から作る
-      </button>
-
-      <button class="action">
-        ✏️ 文字から作る
-      </button>
-
-      <button class="action">
-        🎨 自由に描く
-      </button>
-    `
-  );
+  openModal("スタンプを作る", `<button class="action">🖼️ 画像から作る</button><button class="action">✏️ 文字から作る</button><button class="action">🎨 自由に描く</button>`);
 }
 
-function startVoiceCall() {
-  openModal(
-    "音声通話",
-    `
-      <p class="muted">
-        音声通話機能は次の実装段階で接続します。
-      </p>
-    `
-  );
-}
+function startVoiceCall() { openModal("音声通話", `<p class="muted">音声通話機能は次の実装段階で接続します。</p>`); }
+function startVideoCall() { openModal("ビデオ通話", `<p class="muted">ビデオ通話機能は次の実装段階で接続します。</p>`); }
+function searchAll(value) { if (value.trim()) searchFriends(value); }
 
-function startVideoCall() {
-  openModal(
-    "ビデオ通話",
-    `
-      <p class="muted">
-        ビデオ通話機能は次の実装段階で接続します。
-      </p>
-    `
-  );
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
 }
-
-function searchAll(value) {
-  if (!value.trim()) return;
-
-  console.log(
-    "LOIN検索:",
-    value
-  );
-}
+function escapeAttr(value) { return escapeHtml(value).replace(/`/g, "&#96;"); }
 </script>
 
 </body>
